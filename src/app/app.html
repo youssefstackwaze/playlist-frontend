@@ -1,0 +1,27 @@
+<header class="topbar">
+  <a class="brand" routerLink="/playlists">
+    <span class="brand-logo">♪</span>
+    <span>Playlist Studio</span>
+  </a>
+  <nav class="nav">
+    <a routerLink="/playlists" routerLinkActive="active">Playlists</a>
+    <a routerLink="/songs" routerLinkActive="active">Catalogue</a>
+    <a routerLink="/smart" routerLinkActive="active">Smart playlist</a>
+    <a routerLink="/player" routerLinkActive="active">Lecteur</a>
+  </nav>
+  <a class="nav-api" [href]="swaggerUrl" target="_blank" rel="noopener">API ↗</a>
+</header>
+
+<main class="content">
+  <router-outlet />
+</main>
+
+<app-player-bar />
+
+<div class="toasts" aria-live="polite">
+  @for (toast of notifications.toasts(); track toast.id) {
+    <div class="toast" [class.error]="toast.kind === 'error'" (click)="notifications.dismiss(toast.id)">
+      {{ toast.message }}
+    </div>
+  }
+</div>

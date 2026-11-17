@@ -1,0 +1,115 @@
+<div class="page-header">
+  <div>
+    <h1>✨ Smart playlist</h1>
+    <p class="muted">Choisissez quelques titres : l'API crée la playlist, ajoute des recommandations, la mélange et lance la lecture.</p>
+  </div>
+</div>
+
+@if (result(); as r) {
+  <section class="card stack">
+    <div class="card-title">
+      <h2>« {{ r.playlist.name }} » est prête</h2>
+      <span class="status-pill" [attr.data-status]="r.player.status">{{ r.player.status }}</span>
+    </div>
+    <div class="stats">
+      <div class="stat"><span class="value">{{ r.playlist.songCount - r.addedRecommendations.length }}</span><span class="label">titres de départ</span></div>
+      <div class="stat"><span class="value">+{{ r.addedRecommendations.length }}</span><span class="label">recommandations</span></div>
+      <div class="stat"><span class="value">{{ r.playlist.totalDurationSeconds | duration }}</span><span class="label">durée</span></div>
+      <div class="stat"><span class="value">{{ r.shuffleStrategy }}</span><span class="label">shuffle</span></div>
+    </div>
+    <div>
+      <h3 style="margin-bottom: 0.5rem">Recommandations ajoutées</h3>
+      <ul class="song-list">
+        @for (song of r.addedRecommendations; track song.id) {
+          <li class="song-item">
+            <div class="info">
+              <span class="song-title">{{ song.title }}</span>
+              <span class="muted small">{{ song.artist }}</span>
+            </div>
+            <span class="badge" [attr.data-genre]="song.genre">{{ song.genre | genreLabel }}</span>
+          </li>
+        } @empty {
+          <li class="muted">Aucune recommandation trouvée.</li>
+        }
+      </ul>
+    </div>
+    <div class="row">
+      <a class="btn primary" [routerLink]="['/playlists', r.playlist.id]">Ouvrir la playlist</a>
+      <a class="btn" routerLink="/player">Voir le lecteur</a>
+      <button class="btn" (click)="reset()">Créer une autre</button>
+    </div>
+  </section>
+} @else {
+  <form class="two-cols" [formGroup]="form" (ngSubmit)="submit()">
+    <section class="card stack">
+      <h2>1. Paramètres</h2>
+      <div class="field">
+        <label for="name">Nom *</label>
+        <input id="name" class="input" formControlName="name" placeholder="Soirée jazz"
+               [class.invalid]="form.controls.name.invalid && form.controls.name.touched" />
+        @if (form.controls.name.invalid && form.controls.name.touched) {
+          <span class="error-text">Le nom est obligatoire</span>
+        }
+      </div>
+      <div class="form-grid">
+        <div class="field">
+          <label for="owner">Propriétaire</label>
+          <input id="owner" class="input" formControlName="owner" />
+        </div>
+        <div class="field">
+          <label for="count">Recommandations (0–50)</label>
+          <input id="count" class="input" type="number" min="0" max="50" formControlName="recommendationCount"
+                 [class.invalid]="form.controls.recommendationCount.invalid" />
+        </div>
+      </div>
+      <div class="field">
+        <label for="description">Description</label>
+        <textarea id="description" class="input" formControlName="description" rows="2"></textarea>
+      </div>
+      <div class="field">
+        <span class="label">Stratégie de shuffle</span>
+        @for (s of strategies(); track s.name) {
+          <label class="checkbox">
+            <input type="radio" formControlName="shuffleStrategy" [value]="s.name" />
+            <span><strong>{{ s.name }}</strong> <span class="muted small">– {{ s.description }}</span></span>
+          </label>
+        }
+      </div>
+      <label class="checkbox"><input type="checkbox" formControlName="autoPlay" /> Lancer la lecture automatiquement</label>
+
+      <div>
+        <span class="label">Titres de départ ({{ seeds().length }})</span>
+        <div class="row" style="margin-top: 0.4rem">
+          @for (s of seeds(); track s.id) {
+            <span class="chip">{{ s.title }} <button type="button" (click)="toggleSeed(s)" title="Retirer">✕</button></span>
+          } @empty {
+            <span class="muted small">Sélectionnez des titres dans la liste →</span>
+          }
+        </div>
+      </div>
+
+      <button class="btn primary" type="submit" [disabled]="submitting()">
+        {{ submitting() ? 'Création…' : '✨ Créer, recommander et jouer' }}
+      </button>
+    </section>
+
+    <section class="card">
+      <h2 style="margin-bottom: 0.75rem">2. Titres de départ</h2>
+      <input class="input" placeholder="Rechercher…" [value]="search()" (input)="search.set($any($event.target).value)" />
+      <ul class="song-list scroll-box" style="margin-top: 0.6rem; max-height: 520px">
+        @for (song of candidates(); track song.id) {
+          <li class="song-item">
+            <label class="checkbox info" style="flex-direction: row; align-items: center">
+              <input type="checkbox" [checked]="seedIds().has(song.id)" (change)="toggleSeed(song)" />
+              <span style="display: flex; flex-direction: column; min-width: 0">
+                <span class="song-title">{{ song.title }}</span>
+                <span class="muted small">{{ song.artist }}</span>
+              </span>
+            </label>
+            <span class="badge" [attr.data-genre]="song.genre">{{ song.genre | genreLabel }}</span>
+          </li>
+        }
+      </ul>
+    </section>
+  </form>
+}

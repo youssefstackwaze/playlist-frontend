@@ -1,0 +1,90 @@
+@let s = player.state();
+@let song = player.current();
+
+<div class="page-header">
+  <div>
+    <h1>Lecteur</h1>
+    <p class="muted">Lecteur global unique, partagé par toute l'application (et tous les onglets).</p>
+  </div>
+</div>
+
+<section class="card" style="margin-bottom: 1.25rem">
+  <div class="card-title"><h2>Charger une playlist</h2></div>
+  <div class="row">
+    <select class="select" style="width: auto; min-width: 220px" (change)="selectedPlaylist.set(+$any($event.target).value)">
+      @for (p of playlists(); track p.id) {
+        <option [value]="p.id" [selected]="p.id === selectedPlaylist()" [disabled]="p.songCount === 0">
+          {{ p.name }} ({{ p.songCount }} titres)
+        </option>
+      } @empty {
+        <option disabled selected>Aucune playlist</option>
+      }
+    </select>
+    <select class="select" style="width: auto" (change)="selectedStrategy.set($any($event.target).value)">
+      @for (st of strategies(); track st.name) {
+        <option [value]="st.name" [selected]="st.name === selectedStrategy()">Shuffle {{ st.name }}</option>
+      }
+    </select>
+    <button class="btn primary" (click)="load()" [disabled]="selectedPlaylist() === null">▶ Charger et lire</button>
+  </div>
+</section>
+
+@if (s && s.queueSize > 0) {
+  <section class="card now-playing" style="margin-bottom: 1.25rem">
+    <div class="art" [attr.data-genre]="song?.genre">♪</div>
+    <div class="stack">
+      <div>
+        <span class="status-pill" [attr.data-status]="s.status">{{ s.status }}</span>
+        <h1 style="margin-top: 0.6rem">{{ song?.title }}</h1>
+        <p class="muted" style="margin: 0.2rem 0 0">{{ song?.artist }} · {{ song?.album }}</p>
+        <p class="muted small" style="margin: 0.2rem 0 0">
+          Playlist <a [routerLink]="['/playlists', s.playlistId]" style="color: var(--accent)">{{ s.playlistName }}</a>
+          · titre {{ s.currentIndex + 1 }}/{{ s.queueSize }} · shuffle {{ s.shuffleStrategy }}
+        </p>
+      </div>
+      <div class="pb-progress">
+        <span>{{ player.elapsed() | duration }}</span>
+        <div class="progress"><div class="progress-fill" [style.width.%]="player.progress()"></div></div>
+        <span>{{ song?.durationSeconds | duration }}</span>
+      </div>
+      <div class="row">
+        <button class="icon-btn" title="Précédent" (click)="player.previous()">⏮</button>
+        <button class="icon-btn play" (click)="player.togglePlay()">{{ player.isPlaying() ? '❚❚' : '▶' }}</button>
+        <button class="icon-btn" title="Suivant" (click)="player.next()">⏭</button>
+        <button class="icon-btn" title="Stop" (click)="player.stop()">■</button>
+        <button class="icon-btn" title="Répéter" [class.on]="s.repeat" (click)="player.toggleRepeat()">⟳</button>
+        <span class="spacer"></span>
+        <label class="pb-volume">🔊
+          <input type="range" min="0" max="100" [value]="s.volume" (change)="player.setVolume(+$any($event.target).value)" />
+          <span class="muted small">{{ s.volume }}%</span>
+        </label>
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="card-title"><h2>File d'attente</h2><span class="muted small">{{ s.queueSize }} titres</span></div>
+    <div class="table-wrap">
+      <table class="table">
+        <tbody>
+          @for (q of s.queue; track $index; let i = $index) {
+            <tr [class.current]="i === s.currentIndex">
+              <td class="num">{{ i === s.currentIndex ? '♪' : i + 1 }}</td>
+              <td>
+                <div class="song-title">{{ q.title }}</div>
+                <div class="muted small">{{ q.artist }}</div>
+              </td>
+              <td><span class="badge" [attr.data-genre]="q.genre">{{ q.genre | genreLabel }}</span></td>
+              <td class="muted">{{ q.durationSeconds | duration }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </section>
+} @else {
+  <div class="empty">
+    <span class="big">🎧</span>
+    Aucune playlist dans le lecteur. Chargez-en une ci-dessus.
+  </div>
+}

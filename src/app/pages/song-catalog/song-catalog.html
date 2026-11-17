@@ -1,0 +1,76 @@
+<div class="page-header">
+  <div>
+    <h1>Catalogue</h1>
+    <p class="muted">{{ filtered().length }} titre{{ filtered().length > 1 ? 's' : '' }} disponible{{ filtered().length > 1 ? 's' : '' }}</p>
+  </div>
+</div>
+
+<div class="card" style="margin-bottom: 1.25rem">
+  <div class="form-grid">
+    <div class="field">
+      <label for="q">Recherche</label>
+      <input id="q" class="input" placeholder="Titre, artiste, album…" [value]="query()"
+             (input)="query.set($any($event.target).value)" />
+    </div>
+    <div class="field">
+      <label for="genre">Genre</label>
+      <select id="genre" class="select" (change)="setGenre($any($event.target).value)">
+        <option value="">Tous les genres</option>
+        @for (g of genres; track g) {
+          <option [value]="g" [selected]="genre() === g">{{ g | genreLabel }}</option>
+        }
+      </select>
+    </div>
+    <div class="field">
+      <label for="target">Ajouter à la playlist</label>
+      @if (playlists().length) {
+        <select id="target" class="select" (change)="setTarget($any($event.target).value)">
+          @for (p of playlists(); track p.id) {
+            <option [value]="p.id" [selected]="p.id === targetPlaylistId()">{{ p.name }} ({{ p.songCount }})</option>
+          }
+        </select>
+      } @else {
+        <a class="btn sm" routerLink="/playlists">Créer une playlist d'abord</a>
+      }
+    </div>
+  </div>
+</div>
+
+<section class="card">
+  @if (loading()) {
+    <p class="loading">Chargement…</p>
+  } @else {
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr><th class="num">#</th><th>Titre</th><th>Album</th><th>Genre</th><th>Durée</th><th></th></tr>
+        </thead>
+        <tbody>
+          @for (song of filtered(); track song.id) {
+            <tr>
+              <td class="num">{{ song.id }}</td>
+              <td>
+                <div class="song-title">{{ song.title }}</div>
+                <div class="muted small">{{ song.artist }}</div>
+              </td>
+              <td class="muted small">{{ song.album }}</td>
+              <td><span class="badge" [attr.data-genre]="song.genre">{{ song.genre | genreLabel }}</span></td>
+              <td class="muted">{{ song.durationSeconds | duration }}</td>
+              <td class="actions">
+                @if (target()) {
+                  @if (targetSongIds().has(song.id)) {
+                    <span class="muted small">✓ dans la playlist</span>
+                  } @else {
+                    <button class="btn sm" (click)="add(song)">＋ Ajouter</button>
+                  }
+                }
+              </td>
+            </tr>
+          } @empty {
+            <tr><td colspan="6" class="muted">Aucun titre ne correspond.</td></tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</section>

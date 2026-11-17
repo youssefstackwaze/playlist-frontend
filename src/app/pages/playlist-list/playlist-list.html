@@ -1,0 +1,76 @@
+<div class="page-header">
+  <div>
+    <h1>Mes playlists</h1>
+    <p class="muted">Créez, organisez et écoutez vos playlists.</p>
+  </div>
+  <div class="row">
+    <a class="btn" routerLink="/smart">✨ Smart playlist</a>
+    <button class="btn primary" (click)="showForm.set(!showForm())">
+      {{ showForm() ? 'Annuler' : '+ Nouvelle playlist' }}
+    </button>
+  </div>
+</div>
+
+@if (showForm()) {
+  <form class="card stack" [formGroup]="form" (ngSubmit)="create()" style="margin-bottom: 1.5rem">
+    <h2>Nouvelle playlist</h2>
+    <div class="form-grid">
+      <div class="field">
+        <label for="name">Nom *</label>
+        <input id="name" class="input" formControlName="name" placeholder="Road trip"
+               [class.invalid]="form.controls.name.invalid && form.controls.name.touched" />
+        @if (form.controls.name.invalid && form.controls.name.touched) {
+          <span class="error-text">Le nom est obligatoire</span>
+        }
+      </div>
+      <div class="field">
+        <label for="owner">Propriétaire</label>
+        <input id="owner" class="input" formControlName="owner" placeholder="alice" />
+      </div>
+    </div>
+    <div class="field">
+      <label for="description">Description</label>
+      <textarea id="description" class="input" formControlName="description" rows="2"></textarea>
+    </div>
+    <div class="row">
+      <button class="btn primary" type="submit" [disabled]="saving()">Créer</button>
+      <span class="muted small">Vous pourrez ajouter des chansons ensuite.</span>
+    </div>
+  </form>
+}
+
+@if (loading()) {
+  <p class="loading">Chargement…</p>
+} @else if (playlists().length === 0) {
+  <div class="empty">
+    <span class="big">🎧</span>
+    Aucune playlist pour l'instant.<br />
+    Créez-en une, ou laissez une <a routerLink="/smart" style="color: var(--accent)">smart playlist</a> la remplir pour vous.
+  </div>
+} @else {
+  <div class="grid">
+    @for (p of playlists(); track p.id) {
+      <article class="card playlist-card">
+        <a class="cover" [routerLink]="['/playlists', p.id]">♫</a>
+        <div>
+          <a [routerLink]="['/playlists', p.id]"><h3>{{ p.name }}</h3></a>
+          @if (p.description) {
+            <p class="muted small" style="margin: 0.25rem 0 0">{{ p.description }}</p>
+          }
+        </div>
+        <div class="meta">
+          <span>{{ p.songCount }} titre{{ p.songCount > 1 ? 's' : '' }}</span>
+          <span>{{ p.totalDurationSeconds | duration }}</span>
+          @if (p.owner) { <span>par {{ p.owner }}</span> }
+        </div>
+        <div class="row">
+          <button class="btn primary sm" (click)="play(p)" [disabled]="p.songCount === 0">▶ Lire</button>
+          <a class="btn sm" [routerLink]="['/playlists', p.id]">Ouvrir</a>
+          <span class="spacer"></span>
+          <button class="icon-btn danger" title="Supprimer" (click)="remove(p)">🗑</button>
+        </div>
+        <span class="muted small">Modifiée le {{ p.updatedAt | date: 'dd/MM/yyyy HH:mm' }}</span>
+      </article>
+    }
+  </div>
+}

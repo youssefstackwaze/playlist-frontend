@@ -1,0 +1,265 @@
+@if (notFound()) {
+  <div class="empty">
+    <span class="big">🔍</span>
+    Cette playlist n'existe pas (ou plus).<br />
+    <a class="btn" routerLink="/playlists" style="margin-top: 1rem">← Retour aux playlists</a>
+  </div>
+} @else if (playlist(); as p) {
+  <!-- ===== Header ===== -->
+  <div class="page-header">
+    @if (!editing()) {
+      <div>
+        <a routerLink="/playlists" class="muted small">← Playlists</a>
+        <h1 style="margin-top: 0.3rem">{{ p.name }}</h1>
+        <p class="muted">
+          @if (p.description) { {{ p.description }} · }
+          {{ p.songCount }} titre{{ p.songCount > 1 ? 's' : '' }} · {{ p.totalDurationSeconds | duration }}
+          @if (p.owner) { · par {{ p.owner }} }
+        </p>
+        <p class="muted small">Créée le {{ p.createdAt | date: 'dd/MM/yyyy HH:mm' }} · modifiée le {{ p.updatedAt | date: 'dd/MM/yyyy HH:mm' }}</p>
+      </div>
+      <div class="row">
+        <select class="select" style="width: auto" [value]="playStrategy()"
+                (change)="playStrategy.set($any($event.target).value)" title="Stratégie de lecture">
+          @for (s of strategies(); track s.name) {
+            <option [value]="s.name">Shuffle {{ s.name }}</option>
+          }
+        </select>
+        <button class="btn primary" (click)="play()" [disabled]="p.songCount === 0">▶ Lire</button>
+        <button class="btn" (click)="startEdit()">✎ Modifier</button>
+        <button class="btn danger" (click)="deletePlaylist()">Supprimer</button>
+      </div>
+    } @else {
+      <form class="card stack" style="flex: 1" [formGroup]="form" (ngSubmit)="saveEdit()">
+        <h2>Modifier la playlist</h2>
+        <div class="form-grid">
+          <div class="field">
+            <label for="ename">Nom *</label>
+            <input id="ename" class="input" formControlName="name"
+                   [class.invalid]="form.controls.name.invalid && form.controls.name.touched" />
+          </div>
+          <div class="field">
+            <label for="eowner">Propriétaire</label>
+            <input id="eowner" class="input" formControlName="owner" />
+          </div>
+        </div>
+        <div class="field">
+          <label for="edesc">Description</label>
+          <textarea id="edesc" class="input" formControlName="description" rows="2"></textarea>
+        </div>
+        <div class="row">
+          <button class="btn primary" type="submit">Enregistrer</button>
+          <button class="btn" type="button" (click)="editing.set(false)">Annuler</button>
+        </div>
+      </form>
+    }
+  </div>
+
+  <div class="two-cols">
+    <!-- ===== Songs ===== -->
+    <section class="card">
+      <div class="card-title">
+        <h2>Titres</h2>
+        @if (currentRepeats() > 0) {
+          <span class="muted small" title="Nombre de fois où un artiste est joué deux fois de suite">
+            ⚠ {{ currentRepeats() }} répétition(s) d'artiste
+          </span>
+        }
+      </div>
+      @if (p.songs.length === 0) {
+        <div class="empty">
+          <span class="big">🎵</span>
+          Playlist vide : ajoutez des titres depuis le panneau de droite<br />ou l'onglet Recommandations.
+        </div>
+      } @else {
+        <div class="table-wrap">
+          <table class="table">
+            <thead>
+              <tr><th class="num">#</th><th>Titre</th><th>Album</th><th>Genre</th><th>Durée</th><th></th></tr>
+            </thead>
+            <tbody>
+              @for (song of p.songs; track $index; let i = $index, first = $first, last = $last) {
+                <tr [class.current]="isCurrent(song)">
+                  <td class="num">{{ isCurrent(song) ? '♪' : i + 1 }}</td>
+                  <td>
+                    <div class="song-title">{{ song.title }}</div>
+                    <div class="muted small">{{ song.artist }}</div>
+                  </td>
+                  <td class="muted small">{{ song.album }}</td>
+                  <td><span class="badge" [attr.data-genre]="song.genre">{{ song.genre | genreLabel }}</span></td>
+                  <td class="muted">{{ song.durationSeconds | duration }}</td>
+                  <td class="actions">
+                    <button class="icon-btn" title="Monter" [disabled]="first" (click)="move(i, i - 1)">↑</button>
+                    <button class="icon-btn" title="Descendre" [disabled]="last" (click)="move(i, i + 1)">↓</button>
+                    <button class="icon-btn danger" title="Retirer" (click)="removeSong(song)">✕</button>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    </section>
+
+    <!-- ===== Add songs ===== -->
+    <section class="card">
+      <div class="card-title"><h2>Ajouter des titres</h2></div>
+      <input class="input" placeholder="Rechercher titre, artiste, genre…" [value]="search()"
+             (input)="search.set($any($event.target).value)" />
+      <ul class="song-list scroll-box" style="margin-top: 0.6rem">
+        @for (song of addable(); track song.id) {
+          <li class="song-item">
+            <div class="info">
+              <span class="song-title">{{ song.title }}</span>
+              <span class="muted small">{{ song.artist }} · {{ song.durationSeconds | duration }}</span>
+            </div>
+            <span class="badge" [attr.data-genre]="song.genre">{{ song.genre | genreLabel }}</span>
+            <button class="icon-btn" title="Ajouter" (click)="addSong(song)">＋</button>
+          </li>
+        } @empty {
+          <li class="muted small" style="padding: 0.5rem">Aucun titre disponible.</li>
+        }
+      </ul>
+    </section>
+  </div>
+
+  <!-- ===== Advanced features ===== -->
+  <section class="card" style="margin-top: 1.25rem">
+    <div class="tabs" role="tablist">
+      <button class="tab" [class.active]="tab() === 'recommendations'" (click)="selectTab('recommendations')">Recommandations</button>
+      <button class="tab" [class.active]="tab() === 'shuffle'" (click)="selectTab('shuffle')">Shuffle</button>
+      <button class="tab" [class.active]="tab() === 'analysis'" (click)="selectTab('analysis')">Analyse</button>
+      <button class="tab" [class.active]="tab() === 'export'" (click)="selectTab('export')">Export</button>
+    </div>
+
+    @switch (tab()) {
+      @case ('recommendations') {
+        <div class="row" style="margin-bottom: 0.75rem">
+          <span class="muted small">Basées sur les genres et artistes de la playlist.</span>
+          <span class="spacer"></span>
+          <label class="label" for="limit">Nombre</label>
+          <input id="limit" class="input" type="number" min="1" max="30" style="width: 80px"
+                 [value]="recoLimit()" (change)="setRecoLimit($any($event.target).value)" />
+          <button class="btn sm" (click)="addAllRecommendations()" [disabled]="!recommendations()?.length">Tout ajouter</button>
+        </div>
+        @if (p.songs.length === 0) {
+          <p class="muted">Ajoutez au moins un titre pour obtenir des recommandations.</p>
+        } @else {
+          <ul class="song-list">
+            @for (song of recommendations() ?? []; track song.id) {
+              <li class="song-item">
+                <div class="info">
+                  <span class="song-title">{{ song.title }}</span>
+                  <span class="muted small">{{ song.artist }} · {{ song.album }}</span>
+                </div>
+                <span class="badge" [attr.data-genre]="song.genre">{{ song.genre | genreLabel }}</span>
+                <span class="muted small">{{ song.durationSeconds | duration }}</span>
+                <button class="btn sm" (click)="addSong(song)">＋ Ajouter</button>
+              </li>
+            } @empty {
+              <li class="muted">Aucune recommandation.</li>
+            }
+          </ul>
+        }
+      }
+
+      @case ('shuffle') {
+        <div class="row" style="margin-bottom: 0.75rem">
+          @for (s of strategies(); track s.name) {
+            <label class="checkbox" [title]="s.description">
+              <input type="radio" name="shuffle" [value]="s.name" [checked]="shuffleStrategy() === s.name"
+                     (change)="shuffleStrategy.set(s.name)" />
+              {{ s.name }}
+            </label>
+          }
+          <span class="spacer"></span>
+          <button class="btn primary sm" (click)="runShuffle()" [disabled]="p.songs.length < 2">🔀 Mélanger</button>
+        </div>
+        @for (s of strategies(); track s.name) {
+          @if (s.name === shuffleStrategy()) { <p class="muted small" style="margin-top: 0">{{ s.description }}</p> }
+        }
+        @if (shuffled(); as list) {
+          <p class="small">
+            Répétitions d'artiste consécutives :
+            <strong [style.color]="shuffledRepeats() === 0 ? 'var(--accent)' : 'var(--warning)'">{{ shuffledRepeats() }}</strong>
+            <span class="muted">(ordre actuel : {{ currentRepeats() }})</span>
+          </p>
+          <ul class="song-list">
+            @for (song of list; track $index; let i = $index) {
+              <li class="song-item" [class.warn]="isRepeat(list, i)">
+                <span class="index">{{ i + 1 }}</span>
+                <div class="info">
+                  <span class="song-title">{{ song.title }}</span>
+                  <span class="muted small">{{ song.artist }}</span>
+                </div>
+                <span class="badge" [attr.data-genre]="song.genre">{{ song.genre | genreLabel }}</span>
+              </li>
+            }
+          </ul>
+          <div class="row" style="margin-top: 0.75rem">
+            <button class="btn sm" (click)="saveShuffledOrder()">Enregistrer cet ordre</button>
+            <button class="btn sm" (click)="play(shuffleStrategy())">▶ Lire avec « {{ shuffleStrategy() }} »</button>
+          </div>
+        } @else {
+          <p class="muted">Choisissez une stratégie puis cliquez sur « Mélanger » pour prévisualiser l'ordre.</p>
+        }
+      }
+
+      @case ('analysis') {
+        @if (analysis(); as a) {
+          <div class="stats" style="margin-bottom: 1.25rem">
+            <div class="stat"><span class="value">{{ a.songCount }}</span><span class="label">titres</span></div>
+            <div class="stat"><span class="value">{{ a.duration.formatted }}</span><span class="label">durée totale</span></div>
+            <div class="stat"><span class="value">{{ a.duration.averageSeconds | duration }}</span><span class="label">durée moyenne</span></div>
+            <div class="stat"><span class="value">{{ a.artists.uniqueArtists }}</span><span class="label">artistes</span></div>
+            <div class="stat"><span class="value">{{ a.artists.diversityRatio * 100 | number: '1.0-0' }}%</span><span class="label">diversité</span></div>
+          </div>
+          @if (a.songCount > 0) {
+            <div class="two-cols">
+              <div>
+                <h3 style="margin-bottom: 0.75rem">Genres
+                  @if (a.genres.dominantGenre) { <span class="muted small">· dominant : {{ a.genres.dominantGenre | genreLabel }}</span> }
+                </h3>
+                @for (g of genreEntries(a); track g.genre) {
+                  <div class="genre-bar">
+                    <span>{{ g.genre | genreLabel }}</span>
+                    <div class="genre-bar-track"><div class="genre-bar-fill" [attr.data-genre]="g.genre" [style.width.%]="g.pct"></div></div>
+                    <span class="muted">{{ g.pct }}%</span>
+                  </div>
+                }
+              </div>
+              <div>
+                <h3 style="margin-bottom: 0.75rem">Artistes</h3>
+                <ul class="song-list">
+                  @for (ar of artistEntries(a); track ar.artist) {
+                    <li class="song-item"><div class="info">{{ ar.artist }}</div><span class="muted small">{{ ar.count }}</span></li>
+                  }
+                </ul>
+                <p class="muted small">
+                  Plus long : {{ a.duration.longest }}<br />
+                  Plus court : {{ a.duration.shortest }}<br />
+                  Même artiste consécutif : {{ a.artists.consecutiveSameArtist }}
+                </p>
+              </div>
+            </div>
+          }
+        } @else {
+          <p class="loading">Analyse en cours…</p>
+        }
+      }
+
+      @case ('export') {
+        <div class="row" style="margin-bottom: 0.75rem">
+          @for (f of formats(); track f) {
+            <button class="btn sm" [class.primary]="exportFormat() === f" (click)="setExportFormat(f)">{{ f.toUpperCase() }}</button>
+          }
+          <span class="spacer"></span>
+          <a class="btn primary sm" [href]="exportUrl(exportFormat())" download>⬇ Télécharger .{{ exportFormat() }}</a>
+        </div>
+        <pre class="code">{{ exportPreview() ?? 'Chargement…' }}</pre>
+      }
+    }
+  </section>
+} @else {
+  <p class="loading">Chargement…</p>
+}
